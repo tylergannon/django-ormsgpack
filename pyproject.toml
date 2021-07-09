@@ -24,11 +24,15 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
 ]
-packages = [{ include = "my_app" }]
+packages = [{ include = "django_ormsgpack" }]
 
 [tool.poetry.dependencies]
 python = "^3.7"
 django = "^2.2 || ^3.0"
+ormsgpack = "^0.3.1"
+rope = "^0.19.0"
+pylint = {version = "^2.9.3", extras = ["dev"]}
+jedi = {version = "^0.18.0", extras = ["dev"]}
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
@@ -49,6 +53,8 @@ tox = "*"
 types-requests = "*"
 types-python-dateutil = "*"
 types-simplejson = "*"
+jedi = "^0.18.0"
+pylint-django = "^2.4.4"
 
 [build-system]
 requires = ["poetry>=0.12"]
