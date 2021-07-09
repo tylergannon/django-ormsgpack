@@ -8,10 +8,10 @@ from django.db.models import (
     Model,
     UUIDField,
 )
-from django_ormsgpack import SerializableModel
+from django_ormsgpack import SerializableModel, register_serializable
 
 
-class ATestModel(Model, SerializableModel):
+class ATestModel(SerializableModel, Model):
     id = UUIDField(primary_key=True, default=uuid4, editable=False)
     char_field = CharField(max_length=255)
     date_field = DateTimeField()
@@ -22,3 +22,8 @@ class ATestModel(Model, SerializableModel):
 
     class Serialize:
         fields = {"char_field", "date_field", "decimal_field", "int_field", "zorg"}
+
+
+@register_serializable
+class BTestModel(ATestModel):
+    ...
