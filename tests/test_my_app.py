@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID
 from decimal import Decimal
 from django_ormsgpack import __version__
-from my_app.models import ATestModel, BTestModel
+from my_app.models import ATestModel
 from django_ormsgpack.serializer import serialize
 from pickle import dumps
 
@@ -32,30 +32,35 @@ def test_to_tuple(
     assert other_model_instance.zorg2 != model_instance.zorg2
 
 
-class Model:
-    def bork(self, x):
-        return x * 9
-
-    def save(self):
-        return 952
+X = 100000
 
 
-class Sauce(Model):
-    def bork(self, x):
-        return x * 22
-
-
-class Serializer(Model):
-    def save(self):
-        return 100
-
-
-class Gorky(Sauce, Serializer):
-    ...
-
-
-def test_timings(model_b_instance):
-    fast = timeit(lambda: serialize(model_b_instance), number=100000)
+def test_timings_a(model_instance):
+    fast = timeit(lambda: serialize(model_instance), number=X)
     print(f"FAST: {fast}")
-    slow = timeit(lambda: dumps(model_b_instance), number=100000)
+    slow = timeit(lambda: dumps(model_instance), number=X)
     print(f"SLOW: {slow}")
+
+
+def test_timings_b(model_b_instance):
+    fast = timeit(lambda: serialize(model_b_instance), number=X)
+    print(f"FAST: {fast}")
+    slow = timeit(lambda: dumps(model_b_instance), number=X)
+    print(f"SLOW: {slow}")
+
+
+def test_timings_tuple(model_b_instance, model_instance):
+    zorgoth = model_instance.to_tuple()
+    zilgor = model_b_instance.to_tuple()
+    fast = timeit(lambda: serialize(zilgor), number=X)
+    print(f"FAST: {fast} / size: {len(serialize(model_b_instance))}")
+    print("Compare")
+    print(serialize(model_instance))
+    print(serialize(model_b_instance))
+    print(len(serialize(model_instance)))
+    print(len(serialize(model_b_instance)))
+    slow = timeit(lambda: dumps(zilgor), number=X)
+    print("⤴")
+    print(
+        f"SLOW: {slow} / size: {len(dumps(model_b_instance))}😗{dumps(model_b_instance)}😗"
+    )

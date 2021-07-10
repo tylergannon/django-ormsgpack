@@ -5,6 +5,15 @@ from django.db.models.fields import Field
 from django.db.models import Model
 import ormsgpack
 
+TO_TUPLE_TEMPLATE = """
+def to_tuple(model):
+    return ({expressions})
+
+TheModel.register_serializer(to_tuple)
+"""
+
+_SERIALIZERS = {}
+
 
 def default(obj):
     if isinstance(obj, decimal.Decimal):
@@ -46,6 +55,7 @@ class SerializableModel(Model):
     #     return packb(self.to_tuple(load_related))
     _serializer_fields: Optional[List[Field]] = None
     _serializer_names: Optional[Set[str]] = None
+    _serializer_id: Optional[int] = None
 
     _is_deserialized_copy: bool = False
 
@@ -86,6 +96,10 @@ class SerializableModel(Model):
             force_insert, force_update, update_fields=update_fields, **kwargs
         )
 
+    def _to_tuple(self) -> Optional[Iterable[Any]]:  # pylint: disable=R0201
+        "Does the actual work serializing object to tuple."
+        return None
+
     @classmethod
     def _serialized_field_names(cls) -> Set[str]:
         "Set of names of fields to be serialized"
@@ -118,23 +132,6 @@ class SerializableModel(Model):
             ]
         cls._serializer_fields = fields
         return fields
-
-    def __get_field(
-        self, field: Field, pk_only: Optional[Set[str]], load_related: bool
-    ) -> Any:
-        name = field.name
-        if not field.is_relation:
-            return getattr(self, name)
-        if (pk_only and name in pk_only) or not (
-            load_related or name in self._state.fields_cache  # pylint: disable=E1101
-        ):
-            return getattr(self, field.name + "_id")
-
-        val = getattr(self, name)
-        if isinstance(val, SerializableModel):
-            return val.to_tuple(load_related)
-        # Don't know how to serialize this, just provide the id.
-        return getattr(self, field.name + "_id")
 
     @classmethod
     def _deserialize_field_name(cls, field: Field, val: Any) -> str:
@@ -174,18 +171,41 @@ class SerializableModel(Model):
 
         return obj
 
-    def to_tuple(self, load_related: Optional[bool] = None) -> tuple:
+    @classmethod
+    def register_serializer(cls, fn):
+        _SERIALIZERS[cls] = fn
+
+    def to_tuple(self) -> tuple:
         """
         Convert the object to list based on configuration.
         """
-        metadata = type(self).Serialize
-        if load_related is None:
-            load_related = getattr(metadata, "load_related", False)
+        try:
+            return _SERIALIZERS[self.__class__](self)
+        except KeyError:
+            return self.__define_to_tuple()
+
+    def __define_to_tuple(self) -> List[Any]:
+        "Define a _to_tuple method and attach it to the class."
+        metadata = type(self).Serialize  # pylint: disable=E1101
+        load_related: bool = getattr(metadata, "load_related", False)
 
         fields = type(self).get_serializer_fields()
-
-        pk_only = getattr(metadata, "pk_only", None)
-        return tuple(self.__get_field(field, pk_only, load_related) for field in fields)
+        pk_only: Set[str] = getattr(metadata, "pk_only", set())
+        expressions = []
+        for field in fields:
+            if not field.is_relation or field.name not in pk_only and load_related:
+                expressions.append(f"model.{field.name}")
+            elif field.name in pk_only:
+                expressions.append(f"model.{field.name}_id")
+            else:
+                expressions.append(
+                    f"model.{field.name} if '{field.name}' in "
+                    f"model._state.fields_cache else model.{field.name}_id"
+                )
+        ModelClass = self.__class__
+        function = TO_TUPLE_TEMPLATE.format(expressions=", ".join(expressions))
+        exec(compile(function, "<string>", "exec"), {}, {"TheModel": ModelClass})
+        return _SERIALIZERS[self.__class__](self)
 
     class Meta:
         abstract = True

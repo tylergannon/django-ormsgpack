@@ -19,6 +19,7 @@ def _tz_id(tz: str) -> int:
     return pytz.all_timezones.index(tz)
 
 
+# pylint: disable=W0212
 def ormsgpack_serialize_defaults(val: Any):
     if isinstance(val, datetime):
         # "Pack Time with zone into 17 bytes."
@@ -28,10 +29,11 @@ def ormsgpack_serialize_defaults(val: Any):
         return str(val)
 
     if isinstance(val, SerializableModel):
+        klass = val.__class__
         classid = (
-            getattr(val, SERIALIZER_ID)
-            if hasattr(val, SERIALIZER_ID)
-            else class_fqname(type(val))
+            class_fqname(klass)
+            if klass._serializer_id is None
+            else klass._serializer_id
         )
         return (MODEL, classid, val.to_tuple())
 
