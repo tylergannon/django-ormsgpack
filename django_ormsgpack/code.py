@@ -83,11 +83,9 @@ class Code:
         add_locals: Optional[Mapping[str, Any]] = None,
     ) -> NoReturn:
         _globals = self.build_globals()
-        print("GLOBALS:", _globals)
         if add_globals:
-            print("ADD GLOBALS", add_globals)
             _globals.update(add_globals)
         _locals = self.build_locals()
         if add_locals:
             _locals.update(add_locals)
-        exec(self.compile(), _globals, _locals)
+        exec(self.compile(), _globals, _locals)  # pylint: disable=W0122

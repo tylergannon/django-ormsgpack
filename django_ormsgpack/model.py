@@ -164,20 +164,7 @@ class SerializableModel(Model):
                 compile_from_tuple_function(cls, _DESERIALIZERS)
                 return cls.from_tuple(values)
             except Exception as ex:
-                print("SPLORPYYYYYY")
-                traceback.print_exc()
-                print("BOOOOOO")
-                raise ex
-
-        obj = cls()
-        for field, value in zip(cls.get_serializer_fields(), values):
-            name = cls._deserialize_field_name(field, value)
-            value = cls._deserialize_field_value(field, value)
-            setattr(obj, name, value)
-
-        obj._is_deserialized_copy = True
-
-        return obj
+                raise SerializationError() from ex
 
     @classmethod
     def register_deserializer(cls, fn):
@@ -193,10 +180,7 @@ class SerializableModel(Model):
             try:
                 return self.__define_to_tuple()
             except Exception as ex:
-                print("SPLORPYYYYYY")
-                traceback.print_exc()
-                print("BOOOOOO")
-                raise ex
+                raise SerializationError() from ex
 
     @classmethod
     def __define_from_tuple(cls):
@@ -230,9 +214,6 @@ class SerializableModel(Model):
                 )
         ModelClass = self.__class__
         function = TO_TUPLE_TEMPLATE.format(expressions=", ".join(expressions))
-        print("YOU ARE DO DORK")
-        print(function)
-        print("---------------")
         exec(  # pylint: disable=W0122
             compile(function, "<string>", "exec"),
             {"serialize_dt": serialize_dt},

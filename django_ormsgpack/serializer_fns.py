@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 def _build_deserialization_expression(idx: int, field: Field, depth=0) -> str:
     code = Code()
-    logger.debug("SPOOPY")
     if field.is_relation:
         pk_field: Field = field.related_model._meta.pk
         code.add(f"if val[{idx}]:")
@@ -86,10 +85,6 @@ def serialize_dt(dt: datetime):
 
 def deserialize_dt(zone_id: int, timestamp: float) -> datetime:
     return datetime.fromtimestamp(timestamp, TZ_VAL[zone_id])
-
-
-def deserialize_model(_, class_id: Union[int, str], val: Iterable[Any]):
-    ...
 
 
 DESERIALIZE_INT_FK_TEMPLATE = """if {val_name}[{idx}]:
