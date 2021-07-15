@@ -1,34 +1,30 @@
 from __future__ import annotations
+import traceback
 import decimal
-from typing import Optional, Set, Any, Iterable, List
-from django.db.models.fields import Field
+from typing import Optional, Set, Any, Iterable, List, Union, Type
+from django.db.models.fields import Field, UUIDField
 from django.db.models import Model
+from .serializer_fns import serialize_dt, wrap_expr, compile_from_tuple_function
 import ormsgpack
+
+_ignore = serialize_dt
 
 TO_TUPLE_TEMPLATE = """
 def to_tuple(model):
     return ({expressions})
 
-TheModel.register_serializer(to_tuple)
+_SERIALIZERS[ModelClass] = to_tuple
+"""
+
+
+UUID_FK_SETTER = """
+if {val_name}[{idx}][0] == '{MODEL}'
 """
 
 _SERIALIZERS = {}
+_DESERIALIZERS = {}
 
-
-def default(obj):
-    if isinstance(obj, decimal.Decimal):
-        return str(obj)
-    if isinstance(obj, SerializableModel):
-        return obj.to_tuple()
-    raise TypeError
-
-
-def serialize(val):
-    return ormsgpack.packb(val, default=default)
-
-
-def deserialize(val):
-    return ormsgpack.unpackb(val)
+INDENT = "    "
 
 
 class SerializationError(Exception):
@@ -161,6 +157,18 @@ class SerializableModel(Model):
         """
         Build object from values created by `to_tuple`.
         """
+        try:
+            return _DESERIALIZERS[cls](values)
+        except KeyError:
+            try:
+                compile_from_tuple_function(cls, _DESERIALIZERS)
+                return cls.from_tuple(values)
+            except Exception as ex:
+                print("SPLORPYYYYYY")
+                traceback.print_exc()
+                print("BOOOOOO")
+                raise ex
+
         obj = cls()
         for field, value in zip(cls.get_serializer_fields(), values):
             name = cls._deserialize_field_name(field, value)
@@ -172,8 +180,8 @@ class SerializableModel(Model):
         return obj
 
     @classmethod
-    def register_serializer(cls, fn):
-        _SERIALIZERS[cls] = fn
+    def register_deserializer(cls, fn):
+        _DESERIALIZERS[cls] = fn
 
     def to_tuple(self) -> tuple:
         """
@@ -182,7 +190,24 @@ class SerializableModel(Model):
         try:
             return _SERIALIZERS[self.__class__](self)
         except KeyError:
-            return self.__define_to_tuple()
+            try:
+                return self.__define_to_tuple()
+            except Exception as ex:
+                print("SPLORPYYYYYY")
+                traceback.print_exc()
+                print("BOOOOOO")
+                raise ex
+
+    @classmethod
+    def __define_from_tuple(cls):
+        metadata = cls.Serialize  # pylint: disable=E1101
+        fields = cls.get_serializer_fields()
+        expressions = []
+        for idx, field in enumerate(fields):
+            if field.is_relation:
+                if isinstance(field.related_model._meta.pk, UUIDField):
+                    expr = f"setattr(model, )"
+                    expr = f"'{field.name}_id': (UUID(bytes=val[{idx}][1]) if val[{idx}][0] == '{UUID_IDENTIFIER}')"
 
     def __define_to_tuple(self) -> List[Any]:
         "Define a _to_tuple method and attach it to the class."
@@ -194,17 +219,25 @@ class SerializableModel(Model):
         expressions = []
         for field in fields:
             if not field.is_relation or field.name not in pk_only and load_related:
-                expressions.append(f"model.{field.name}")
+                expressions.append(wrap_expr(f"model.{field.name}", field))
             elif field.name in pk_only:
                 expressions.append(f"model.{field.name}_id")
             else:
                 expressions.append(
-                    f"model.{field.name} if '{field.name}' in "
-                    f"model._state.fields_cache else model.{field.name}_id"
+                    wrap_expr(f"model.{field.name}", field)
+                    + f" if '{field.name}' in model._state.fields_cache"
+                    f" else model.{field.name}_id"
                 )
         ModelClass = self.__class__
         function = TO_TUPLE_TEMPLATE.format(expressions=", ".join(expressions))
-        exec(compile(function, "<string>", "exec"), {}, {"TheModel": ModelClass})
+        print("YOU ARE DO DORK")
+        print(function)
+        print("---------------")
+        exec(  # pylint: disable=W0122
+            compile(function, "<string>", "exec"),
+            {"serialize_dt": serialize_dt},
+            {"_SERIALIZERS": _SERIALIZERS, "ModelClass": ModelClass},
+        )
         return _SERIALIZERS[self.__class__](self)
 
     class Meta:

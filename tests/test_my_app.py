@@ -4,7 +4,7 @@ from uuid import UUID
 from decimal import Decimal
 from django_ormsgpack import __version__
 from my_app.models import ATestModel
-from django_ormsgpack.serializer import serialize
+from django_ormsgpack.serializer import serialize, deserialize
 from pickle import dumps
 
 
@@ -20,11 +20,19 @@ def test_to_tuple(
     decimal_val: Decimal,
 ):
     as_tuple = model_instance.to_tuple()
-    assert as_tuple == (pk_uuid, "Coolio", now, decimal_val, 123, some_uuid)
+    print(as_tuple)
+    assert deserialize(as_tuple) == [
+        pk_uuid,
+        "Coolio",
+        now,
+        str(decimal_val),
+        123,
+        some_uuid,
+    ]
 
     other_model_instance = ATestModel.from_tuple(as_tuple)
 
-    assert other_model_instance.id == model_instance.id
+    assert deserialize(other_model_instance.id) == model_instance.id
     assert other_model_instance.char_field == model_instance.char_field
     assert other_model_instance.int_field == model_instance.int_field
     assert other_model_instance.date_field == model_instance.date_field
@@ -32,7 +40,7 @@ def test_to_tuple(
     assert other_model_instance.zorg2 != model_instance.zorg2
 
 
-X = 100000
+X = 50000
 
 
 def test_timings_a(model_instance):
@@ -49,18 +57,7 @@ def test_timings_b(model_b_instance):
     print(f"SLOW: {slow}")
 
 
-def test_timings_tuple(model_b_instance, model_instance):
-    zorgoth = model_instance.to_tuple()
-    zilgor = model_b_instance.to_tuple()
-    fast = timeit(lambda: serialize(zilgor), number=X)
-    print(f"FAST: {fast} / size: {len(serialize(model_b_instance))}")
-    print("Compare")
-    print(serialize(model_instance))
-    print(serialize(model_b_instance))
-    print(len(serialize(model_instance)))
-    print(len(serialize(model_b_instance)))
-    slow = timeit(lambda: dumps(zilgor), number=X)
-    print("⤴")
-    print(
-        f"SLOW: {slow} / size: {len(dumps(model_b_instance))}😗{dumps(model_b_instance)}😗"
-    )
+def test_sizes(model_b_instance, model_instance):
+    print(f"Model A length: {len(serialize(model_b_instance))}")
+    print(f"Model B length: {len(serialize(model_b_instance))}")
+    print(f"Model B via Pickle: {len(dumps(model_b_instance))}")
