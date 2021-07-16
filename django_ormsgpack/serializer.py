@@ -1,29 +1,32 @@
-import pytz
-from uuid import UUID
-from typing import Any
-from decimal import Decimal
 from datetime import datetime
-from .registry import class_fqname, SERIALIZER_ID
-from .model import SerializableModel
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
 import ormsgpack
+import pytz
+
+from .model import SerializableModel
+from .registry import SERIALIZER_ID, class_fqname
+from .serializer_fns import deserialize_dt, serialize_dt
 
 TZ = "T_Z_"
 MODEL = "S_M_"
-UUID = "uUiD"
-
-TZ_IDX = {tz: idx for idx, tz in enumerate(sorted(pytz.common_timezones))}
-TZ_VAL = {idx: pytz.timezone(tz) for tz, idx in TZ_IDX.items()}
+UUID_IDENTIFIER = "uUiD"
 
 
 def _tz_id(tz: str) -> int:
     return pytz.all_timezones.index(tz)
 
 
-# pylint: disable=W0212
-def ormsgpack_serialize_defaults(val: Any):
+# pylint: disable=protected-access
+def ormsgpack_serialize_defaults(val: Any) -> Any:
     if isinstance(val, datetime):
         # "Pack Time with zone into 17 bytes."
-        return (TZ, TZ_IDX[val.tzinfo.zone], val.timestamp())
+        return serialize_dt(val)
+
+    if isinstance(val, UUID):
+        return (UUID_IDENTIFIER, val.bytes)
 
     if isinstance(val, Decimal):
         return str(val)
@@ -38,7 +41,23 @@ def ormsgpack_serialize_defaults(val: Any):
         return (MODEL, classid, val.to_tuple())
 
 
-def serialize(val: Any):
+def deserialize(val: Any) -> Any:
+    if isinstance(
+        val,
+        (
+            list,
+            tuple,
+        ),
+    ):
+        if val[0] == UUID_IDENTIFIER:
+            return UUID(bytes=val[1])
+        if val[0] == TZ:
+            return deserialize_dt(val[1], val[2])
+        return [deserialize(subval) for subval in val]
+    return val
+
+
+def serialize(val: Any) -> str:
     return ormsgpack.packb(
         val,
         default=ormsgpack_serialize_defaults,

@@ -29,8 +29,9 @@ jobs:
 
       - name: Install and run tox
         run: |
-          pip install tox
-          tox
+          pip install poetry
+          poetry install -v
+          poetry run tox
 
   test:
     name: Run tests
@@ -38,7 +39,7 @@ jobs:
     strategy:
       matrix:
         python: [3.9]
-        django: [32,master]
+        django: [32]
 
     env:
       TOXENV: py${{ matrix.python }}-django${{ matrix.django }}
@@ -71,5 +72,6 @@ jobs:
 
       - name: Install and run tox
         run: |
-          pip install tox
-          tox
+          pip install poetry
+          poetry install -v
+          poetry run tox
