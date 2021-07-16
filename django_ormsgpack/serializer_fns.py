@@ -11,10 +11,11 @@ from django.db.models.fields import DateTimeField, DecimalField, Field, UUIDFiel
 
 from .code import Code
 from .serializable import Serializable
+from .registry import get_class
 
-TZ = "T_Z_"
-MODEL = "S_M_"
-UUID_IDENTIFIER = "uUiD"
+TZ = "__DATETIME__"
+MODEL = "__MODEL__"
+UUID_IDENTIFIER = "__UUID__"
 
 
 TZ_IDX = {tz: idx for idx, tz in enumerate(sorted(pytz.common_timezones))}
@@ -33,6 +34,13 @@ def serialize_dt(dt: datetime) -> tuple:
 
 def deserialize_dt(zone_id: int, timestamp: float) -> datetime:
     return datetime.fromtimestamp(timestamp, TZ_VAL[zone_id])
+
+
+def deserialize_model(
+    class_id: Union[str, int], serialized_value: List[Any]
+) -> Serializable:
+    ModelClass = get_class(class_id)
+    return ModelClass.from_tuple(serialized_value)
 
 
 def _build_deserialization_expression(idx: int, field: Field, depth: int = 0) -> Code:
@@ -129,7 +137,7 @@ def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict) -
 
     code.add(f"_SERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_SERIALIZERS=serializers_dict)
-    code.exec(f"{fn_name}.py")
+    code.exec()
 
 
 def compile_from_tuple_function(
@@ -153,4 +161,4 @@ def compile_from_tuple_function(
     code.full_outdent()
     code.add(f"_DESERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_DESERIALIZERS=deserializers_dict)
-    code.exec(f"{fn_name}.py")
+    code.exec()

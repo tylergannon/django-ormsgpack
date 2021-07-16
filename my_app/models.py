@@ -17,8 +17,8 @@ class ATestModel(SerializableModel, Model):
     date_field = DateTimeField()
     decimal_field = DecimalField()
     int_field = IntegerField()
-    zorg = UUIDField(default=uuid4)
-    zorg2 = UUIDField(default=uuid4)
+    zorg = UUIDField()
+    zorg2 = UUIDField()
 
     class Serialize:
         fields = {"char_field", "date_field", "decimal_field", "int_field", "zorg"}
@@ -42,7 +42,7 @@ class Ticket(SerializableModel, Model):
     )
     user = models.ForeignKey(BTestModel, related_name="users", on_delete=models.PROTECT)
     purchaser = models.ForeignKey(
-        BTestModel, related_name="sauce", on_delete=models.PROTECT
+        CTestModel, related_name="sauce", on_delete=models.PROTECT
     )
     cnt_feature_views = models.IntegerField(default=0)
     cnt_preroll_views = models.IntegerField(default=0)
