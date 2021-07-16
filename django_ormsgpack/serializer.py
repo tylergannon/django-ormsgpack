@@ -9,12 +9,12 @@ import pytz
 from .model import SerializableModel
 from .registry import SERIALIZER_ID, class_fqname
 from .serializer_fns import (
-    deserialize_dt,
-    serialize_dt,
-    deserialize_model,
-    TZ,
     MODEL,
+    TZ,
     UUID_IDENTIFIER,
+    deserialize_dt,
+    deserialize_model,
+    serialize_dt,
 )
 
 

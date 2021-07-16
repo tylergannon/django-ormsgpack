@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Type, Union, TypeVar
+from typing import Dict, Type, TypeVar, Union
 from zlib import adler32
 
 from django.utils.module_loading import import_string

@@ -10,8 +10,8 @@ from django.db.models import Model, fields
 from django.db.models.fields import DateTimeField, DecimalField, Field, UUIDField
 
 from .code import Code
-from .serializable import Serializable
 from .registry import get_class
+from .serializable import Serializable
 
 TZ = "__DATETIME__"
 MODEL = "__MODEL__"
