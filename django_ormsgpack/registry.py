@@ -1,8 +1,11 @@
 from __future__ import annotations
-from .serializable import Serializable
-from typing import Union, Type, Dict, Union
+
+from typing import Dict, Type, Union
 from zlib import adler32
+
 from django.utils.module_loading import import_string
+
+from .serializable import Serializable
 
 CLASS_TO_ID: Dict[Type[Serializable], int] = {}
 ID_TO_CLASS: Dict[Union[int, str], Type[Serializable]] = {}

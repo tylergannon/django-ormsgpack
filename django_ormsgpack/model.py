@@ -1,26 +1,26 @@
 from __future__ import annotations
-import traceback
+
 import decimal
+import traceback
 from typing import (
-    Optional,
-    Set,
     Any,
-    Iterable,
-    List,
-    Union,
-    Type,
-    TypeVar,
     Callable,
     Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
 )
-from .serializable import Serializable
-from django.db.models.fields import Field, UUIDField
-from django.db.models import Model
-from .serializer_fns import (
-    compile_from_tuple_function,
-    compile_to_tuple_function,
-)
+
 import ormsgpack
+from django.db.models import Model
+from django.db.models.fields import Field, UUIDField
+
+from .serializable import Serializable
+from .serializer_fns import compile_from_tuple_function, compile_to_tuple_function
 
 T = TypeVar("T", bound=Serializable)
 
@@ -131,16 +131,16 @@ class SerializableModel(Model):
         return fields
 
     @classmethod
-    def from_tuple(cls: T, values: Iterable[Any]) -> T:
+    def from_tuple(cls: T, values: Iterable[Any]) -> T:  # type: ignore
         """
         Build object from values created by `to_tuple`.
         """
         try:
-            return _DESERIALIZERS[cls](values)
+            return _DESERIALIZERS[cls](values)  # type: ignore
         except KeyError:
             try:
-                compile_from_tuple_function(cls, _DESERIALIZERS)
-                return cls.from_tuple(values)
+                compile_from_tuple_function(cls, _DESERIALIZERS)  # type: ignore
+                return cls.from_tuple(values)  # type: ignore
             except Exception as ex:
                 traceback.print_exc()
                 raise SerializationError() from ex

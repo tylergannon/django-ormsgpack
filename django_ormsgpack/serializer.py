@@ -1,12 +1,14 @@
-import pytz
-from uuid import UUID
-from typing import Any
-from decimal import Decimal
 from datetime import datetime
-from .registry import class_fqname, SERIALIZER_ID
-from .model import SerializableModel
-from .serializer_fns import serialize_dt, deserialize_dt
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
 import ormsgpack
+import pytz
+
+from .model import SerializableModel
+from .registry import SERIALIZER_ID, class_fqname
+from .serializer_fns import deserialize_dt, serialize_dt
 
 TZ = "T_Z_"
 MODEL = "S_M_"
@@ -18,7 +20,7 @@ def _tz_id(tz: str) -> int:
 
 
 # pylint: disable=protected-access
-def ormsgpack_serialize_defaults(val: Any):
+def ormsgpack_serialize_defaults(val: Any) -> Any:
     if isinstance(val, datetime):
         # "Pack Time with zone into 17 bytes."
         return serialize_dt(val)
@@ -39,7 +41,7 @@ def ormsgpack_serialize_defaults(val: Any):
         return (MODEL, classid, val.to_tuple())
 
 
-def deserialize(val: Any):
+def deserialize(val: Any) -> Any:
     if isinstance(
         val,
         (
@@ -55,7 +57,7 @@ def deserialize(val: Any):
     return val
 
 
-def serialize(val: Any):
+def serialize(val: Any) -> str:
     return ormsgpack.packb(
         val,
         default=ormsgpack_serialize_defaults,

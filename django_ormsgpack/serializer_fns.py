@@ -1,14 +1,16 @@
 from __future__ import annotations
-import pytz
-from uuid import UUID
-import logging
-from typing import Iterable, Union, Any, Type, List, Set
-from datetime import datetime
-from django.db.models import fields, Model
-from django.db.models.fields import Field, UUIDField, DateTimeField, DecimalField
-from .serializable import Serializable
-from .code import Code
 
+import logging
+from datetime import datetime
+from typing import Any, Iterable, List, Set, Type, Union
+from uuid import UUID
+
+import pytz
+from django.db.models import Model, fields
+from django.db.models.fields import DateTimeField, DecimalField, Field, UUIDField
+
+from .code import Code
+from .serializable import Serializable
 
 TZ = "T_Z_"
 MODEL = "S_M_"
@@ -20,8 +22,9 @@ TZ_VAL = {idx: pytz.timezone(tz) for tz, idx in TZ_IDX.items()}
 
 logger = logging.getLogger(__name__)
 
-def serialize_dt(dt: datetime):
-    return (TZ, TZ_IDX[dt.tzinfo.zone], dt.timestamp())
+
+def serialize_dt(dt: datetime) -> tuple:
+    return (TZ, TZ_IDX[dt.tzinfo.zone], dt.timestamp())  # type: ignore
 
 
 def deserialize_dt(zone_id: int, timestamp: float) -> datetime:

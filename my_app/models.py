@@ -1,5 +1,4 @@
 from uuid import uuid4
-from django_ormsgpack import __version__
 from django.db.models import (
     DateTimeField,
     DecimalField,

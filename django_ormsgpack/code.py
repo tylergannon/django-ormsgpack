@@ -1,8 +1,9 @@
 from __future__ import annotations
-from io import StringIO
+
 from dataclasses import dataclass, field
-from typing import List, Union, NoReturn, Any, Dict, Mapping, Tuple, Optional, Type
+from io import StringIO
 from types import CodeType
+from typing import Any, Dict, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
 COLON = ":"
 
