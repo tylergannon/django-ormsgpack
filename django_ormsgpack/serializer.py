@@ -45,22 +45,32 @@ def ormsgpack_serialize_defaults(val: Any) -> Any:
 
 
 def deserialize(val: bytes) -> Any:
-    val = ormsgpack.unpackb(val)
+    """
+    Unpack and unwrap the given value.
+
+    :param val: Should be a value returned by the `serialize` function.
+    """
+    return _unwrap(ormsgpack.unpackb(val))
+
+
+def _unwrap(unpacked: Any) -> Any:
     if isinstance(
-        val,
+        unpacked,
         (
             list,
             tuple,
         ),
     ):
-        if val[0] == UUID_IDENTIFIER:
-            return UUID(bytes=val[1])
-        if val[0] == TZ:
-            return deserialize_dt(val[1], val[2])
-        if val[0] == MODEL:
-            return deserialize_model(val[1], val[2])
-        return [deserialize(subval) for subval in val]
-    return val
+        if unpacked[0] == UUID_IDENTIFIER:
+            return UUID(bytes=unpacked[1])
+        if unpacked[0] == TZ:
+            return deserialize_dt(unpacked[1], unpacked[2])
+        if unpacked[0] == MODEL:
+            return deserialize_model(unpacked[1], unpacked[2])
+        return [_unwrap(subval) for subval in unpacked]
+    if isinstance(unpacked, dict):
+        return {key: _unwrap(val) for key, val in unpacked.items()}
+    return unpacked
 
 
 def serialize(val: Any) -> str:
