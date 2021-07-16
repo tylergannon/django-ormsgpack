@@ -10,17 +10,22 @@ from django.db.models import Model, fields
 from django.db.models.fields import DateTimeField, DecimalField, Field, UUIDField
 
 from .code import Code
+from .registry import get_class
 from .serializable import Serializable
 
-TZ = "T_Z_"
-MODEL = "S_M_"
-UUID_IDENTIFIER = "uUiD"
+TZ = "__DATETIME__"
+MODEL = "__MODEL__"
+UUID_IDENTIFIER = "__UUID__"
 
 
 TZ_IDX = {tz: idx for idx, tz in enumerate(sorted(pytz.common_timezones))}
 TZ_VAL = {idx: pytz.timezone(tz) for tz, idx in TZ_IDX.items()}
 
 logger = logging.getLogger(__name__)
+
+
+def serialize_timezone(dt: datetime) -> int:
+    return TZ_IDX[dt.tzinfo.zone]  # type: ignore
 
 
 def serialize_dt(dt: datetime) -> tuple:
@@ -31,14 +36,21 @@ def deserialize_dt(zone_id: int, timestamp: float) -> datetime:
     return datetime.fromtimestamp(timestamp, TZ_VAL[zone_id])
 
 
+def deserialize_model(
+    class_id: Union[str, int], serialized_value: List[Any]
+) -> Serializable:
+    ModelClass = get_class(class_id)
+    return ModelClass.from_tuple(serialized_value)
+
+
 def _build_deserialization_expression(idx: int, field: Field, depth: int = 0) -> Code:
     code = Code()
     if field.is_relation:
         pk_field: Field = field.related_model._meta.pk
         code.add(f"if val[{idx}]:")
         if isinstance(pk_field, UUIDField):
-            code.add(f"if val[{idx}][0] == '{UUID_IDENTIFIER}':")
-            code.add(f"instance.{field.name}_id = UUID(bytes=val[{idx}][1])")
+            code.add(f"if isinstance(val[{idx}], bytes):")
+            code.add(f"instance.{field.name}_id = UUID(bytes=val[{idx}])")
             code.add_globals(UUID)
         else:
             code.add(f"if not isinstance(val[{idx}], (list, tuple)):")
@@ -52,14 +64,14 @@ def _build_deserialization_expression(idx: int, field: Field, depth: int = 0) ->
         if isinstance(field, UUIDField):
             code.add_globals(UUID)
             code.add(
-                f"instance.{field.name} = UUID(bytes=val[{idx}][1]) if isinstance(val[{idx}], (list, tuple)) else fields[{idx}].to_python(val[{idx}])"
+                f"instance.{field.name} = UUID(bytes=val[{idx}]) if isinstance(val[{idx}], bytes) else fields[{idx}].to_python(val[{idx}])"
             )
         elif isinstance(field, DateTimeField):
             code.add(f"instance.{field.name} = (")
             code.start_block()
             code.add("None")
             code.add(f"if val[{idx}] is None else")
-            code.add(f"datetime.fromtimestamp(val[{idx}][2], TZ_VAL[val[{idx}][1]])")
+            code.add(f"datetime.fromtimestamp(val[{idx}][1], TZ_VAL[val[{idx}][0]])")
             code.outdent()
             code.add(")")
             code.add_globals(datetime=datetime, TZ_VAL=TZ_VAL)
@@ -88,13 +100,13 @@ def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict) -
             return f"None if val.{field.name} is None else {expr}"
 
         if isinstance(field, UUIDField):
-            code.add(null_check(f"('{UUID_IDENTIFIER}', val.{field.name}.bytes)") + ",")
+            code.add(null_check(f"val.{field.name}.bytes") + ",")
         elif isinstance(field, DecimalField):
             code.add(null_check(f"str(val.{field.name})") + ",")
         elif isinstance(field, DateTimeField):
             code.add(
                 null_check(
-                    f"('{TZ}', TZ_IDX[val.{field.name}.tzinfo.zone], val.{field.name}.timestamp())"
+                    f"(TZ_IDX[val.{field.name}.tzinfo.zone], val.{field.name}.timestamp())"
                     + ","
                 )
             )
@@ -114,7 +126,7 @@ def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict) -
             # By now we know that we can and should serialize the value
             # IF it is there in the cached fields.
             code.add(
-                f"val.{field.name} if '{field.name}' in val._state.fields_cache else {id_expr},"
+                f"val.{field.name}.to_tuple() if '{field.name}' in val._state.fields_cache else {id_expr},"
             )
         else:
             code.add(f"val.{field.name},")
@@ -125,7 +137,7 @@ def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict) -
 
     code.add(f"_SERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_SERIALIZERS=serializers_dict)
-    code.exec(f"{fn_name}.py")
+    code.exec()
 
 
 def compile_from_tuple_function(
@@ -149,4 +161,4 @@ def compile_from_tuple_function(
     code.full_outdent()
     code.add(f"_DESERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_DESERIALIZERS=deserializers_dict)
-    code.exec(f"{fn_name}.py")
+    code.exec()
