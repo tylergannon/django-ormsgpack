@@ -55,6 +55,7 @@ types-python-dateutil = "*"
 types-simplejson = "*"
 jedi = "^0.18.0"
 pylint-django = "^2.4.4"
+types-pytz = "^2021.1.0"
 
 [build-system]
 requires = ["poetry>=0.12"]

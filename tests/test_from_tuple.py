@@ -13,13 +13,11 @@ from pickle import dumps
 
 def test_to_tuple_fn():
     gorky = {}
-    code = compile_to_tuple_function(ATestModel, gorky)
-    print(code.to_string())
+    compile_to_tuple_function(ATestModel, gorky)
     print("TO_TUPLE", gorky)
 
 
 def test_from_tuple_fn():
     gorky = {}
-    code = compile_from_tuple_function(ATestModel, gorky)
-    print(code.to_string())
+    compile_from_tuple_function(ATestModel, gorky)
     print("FROM_TUPLE", gorky)

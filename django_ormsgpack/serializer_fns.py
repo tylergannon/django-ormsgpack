@@ -14,23 +14,21 @@ TZ = "T_Z_"
 MODEL = "S_M_"
 UUID_IDENTIFIER = "uUiD"
 
-FROM_TUPLE_TEMPLATE = """
-def __from_tuple(cls, val: List[Any]):
-    instance = cls()
-    fields = cls.get_serializer_fields()
-{expressions}
-    return instance
-
-TheModel.register_deserializer(classmethod(__from_tuple))
-"""
 
 TZ_IDX = {tz: idx for idx, tz in enumerate(sorted(pytz.common_timezones))}
 TZ_VAL = {idx: pytz.timezone(tz) for tz, idx in TZ_IDX.items()}
 
 logger = logging.getLogger(__name__)
 
+def serialize_dt(dt: datetime):
+    return (TZ, TZ_IDX[dt.tzinfo.zone], dt.timestamp())
 
-def _build_deserialization_expression(idx: int, field: Field, depth=0) -> str:
+
+def deserialize_dt(zone_id: int, timestamp: float) -> datetime:
+    return datetime.fromtimestamp(timestamp, TZ_VAL[zone_id])
+
+
+def _build_deserialization_expression(idx: int, field: Field, depth: int = 0) -> Code:
     code = Code()
     if field.is_relation:
         pk_field: Field = field.related_model._meta.pk
@@ -67,7 +65,7 @@ def _build_deserialization_expression(idx: int, field: Field, depth=0) -> str:
     return code
 
 
-def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict):
+def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict) -> None:
     metadata = ModelClass.Serialize  # pylint: disable=E1101
     load_related: bool = getattr(metadata, "load_related", False)
 
@@ -125,10 +123,11 @@ def compile_to_tuple_function(ModelClass: Type[Model], serializers_dict: dict):
     code.add(f"_SERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_SERIALIZERS=serializers_dict)
     code.exec(f"{fn_name}.py")
-    return code
 
 
-def compile_from_tuple_function(ModelClass: Type[Model], deserializers_dict: dict):
+def compile_from_tuple_function(
+    ModelClass: Type[Model], deserializers_dict: dict
+) -> None:
     fields: List[Field] = ModelClass.get_serializer_fields()
     code = Code()
     fn_name = f"_{ModelClass.__name__}_from_tuple"
@@ -148,26 +147,3 @@ def compile_from_tuple_function(ModelClass: Type[Model], deserializers_dict: dic
     code.add(f"_DESERIALIZERS[ModelClass] = {fn_name}")
     code.add_globals(_DESERIALIZERS=deserializers_dict)
     code.exec(f"{fn_name}.py")
-    return code
-
-
-def serialize_dt(dt: datetime):
-    return (TZ, TZ_IDX[dt.tzinfo.zone], dt.timestamp())
-
-
-def deserialize_dt(zone_id: int, timestamp: float) -> datetime:
-    return datetime.fromtimestamp(timestamp, TZ_VAL[zone_id])
-
-
-def wrap_expr(expr: str, field: fields.Field) -> str:
-    if isinstance(field, fields.DateTimeField):
-        return f"serialize_dt({expr})"
-    if isinstance(field, fields.UUIDField):
-        return f"('{UUID_IDENTIFIER}', ({expr}).bytes)"
-    if isinstance(field, fields.DecimalField):
-        return f"str({expr})"
-    if field.is_relation:
-        if hasattr(field.related_model, "to_tuple"):
-            return f"({expr}).to_tuple()"
-        return expr + "_id"
-    return expr

@@ -1,22 +1,35 @@
 from __future__ import annotations
 import traceback
 import decimal
-from typing import Optional, Set, Any, Iterable, List, Union, Type
+from typing import (
+    Optional,
+    Set,
+    Any,
+    Iterable,
+    List,
+    Union,
+    Type,
+    TypeVar,
+    Callable,
+    Dict,
+)
+from .serializable import Serializable
 from django.db.models.fields import Field, UUIDField
 from django.db.models import Model
 from .serializer_fns import (
-    serialize_dt,
-    wrap_expr,
     compile_from_tuple_function,
     compile_to_tuple_function,
 )
 import ormsgpack
 
-_ignore = serialize_dt
+T = TypeVar("T", bound=Serializable)
+
+SerializerFunction = Callable[[Serializable], tuple]
+DeserializerFunction = Callable[[Union[list, tuple]], Serializable]
 
 
-_SERIALIZERS = {}
-_DESERIALIZERS = {}
+_SERIALIZERS: Dict[Type[Serializable], SerializerFunction] = {}
+_DESERIALIZERS: Dict[Type[Serializable], DeserializerFunction] = {}
 
 
 class SerializationError(Exception):
@@ -49,11 +62,11 @@ class SerializableModel(Model):
 
     def save(
         self,
-        force_insert=False,
-        force_update=False,
-        update_fields=None,
-        **kwargs,
-    ):
+        force_insert: bool = False,
+        force_update: bool = False,
+        update_fields: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> Any:
         """
         Save the model.  Raises `SerializationProgrammingError` if save() would
         corrupt the database by saving empty values for unserialized fields on
@@ -69,7 +82,7 @@ class SerializableModel(Model):
             or force_insert
             or force_update
             or self.pk is None
-            or len(type(self)._serialized_field_names()) == len(self._meta.fields)
+            or len(type(self).serialized_field_names()) == len(self._meta.fields)
         ):
             return super().save(
                 force_insert, force_update, update_fields=update_fields, **kwargs
@@ -77,7 +90,7 @@ class SerializableModel(Model):
         if not update_fields or any(
             name
             for name in update_fields
-            if name not in type(self)._serialized_field_names()
+            if name not in type(self).serialized_field_names()
         ):
             raise SerializationProgrammingError(ERROR_UPDATE_FIELDS)
         return super().save(
@@ -85,7 +98,7 @@ class SerializableModel(Model):
         )
 
     @classmethod
-    def _serialized_field_names(cls) -> Set[str]:
+    def serialized_field_names(cls) -> Set[str]:
         "Set of names of fields to be serialized"
         if cls._serialized_field_names is not None:
             return cls._serialized_field_names
@@ -118,7 +131,7 @@ class SerializableModel(Model):
         return fields
 
     @classmethod
-    def from_tuple(cls, values: Iterable[Any]) -> cls:
+    def from_tuple(cls: T, values: Iterable[Any]) -> T:
         """
         Build object from values created by `to_tuple`.
         """

@@ -1,17 +1,17 @@
 from __future__ import annotations
 from .serializable import Serializable
-from typing import Union, Type
+from typing import Union, Type, Dict, Union
 from zlib import adler32
 from django.utils.module_loading import import_string
 
-CLASS_TO_ID = {}
-ID_TO_CLASS = {}
+CLASS_TO_ID: Dict[Type[Serializable], int] = {}
+ID_TO_CLASS: Dict[Union[int, str], Type[Serializable]] = {}
 ASCII = "ascii"
 
 SERIALIZER_ID = "_serializer_id"
 
 
-def class_fqname(klass) -> str:
+def class_fqname(klass: Type[Serializable]) -> str:
     "Return the dot-separated module and class name."
     return klass.__module__ + "." + klass.__name__
 
@@ -27,11 +27,13 @@ def get_class(class_fqn: Union[str, int]) -> Type[Serializable]:
     klass = ID_TO_CLASS.get(class_fqn)
     if not klass:
         klass = import_string(class_fqn)
+        if klass is None:
+            raise ValueError(f"I don't recognize {class_fqn}.")
         ID_TO_CLASS[class_fqn] = klass
     return klass
 
 
-def register_serializable(decorated):
+def register_serializable(decorated: Type[Serializable]) -> Type[Serializable]:
     """
     Add the decorated class to registry of serializable classes.
     """

@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 
 class Serializable(ABC):
+    _serializer_id = 0
+
     @classmethod
     @abstractmethod
     def from_tuple(cls: Type[T], val: List[Any]) -> T:

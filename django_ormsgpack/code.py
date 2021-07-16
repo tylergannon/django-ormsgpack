@@ -1,7 +1,7 @@
 from __future__ import annotations
 from io import StringIO
 from dataclasses import dataclass, field
-from typing import List, Union, NoReturn, Any, Dict, Mapping, Tuple, Optional
+from typing import List, Union, NoReturn, Any, Dict, Mapping, Tuple, Optional, Type
 from types import CodeType
 
 COLON = ":"
@@ -12,16 +12,16 @@ class Code:
     lines: List[Tuple[int, Union[str, Code]]] = field(default_factory=list)
     depth: int = 0
     indent: int = 4
-    locals: Mapping[str, Any] = field(default_factory=dict)
+    locals: Dict[str, Any] = field(default_factory=dict)
     globals: Dict[str, Any] = field(default_factory=dict)
 
-    def start_block(self):
+    def start_block(self) -> None:
         self.depth += 1
 
-    def end_block(self):
+    def end_block(self) -> None:
         self.depth -= 1
 
-    def build_globals(self, **kwargs) -> dict:
+    def build_globals(self, **kwargs: Dict[str, Any]) -> dict:
         _globals: dict = self.globals.copy()
         for _, line in self.lines:
             if isinstance(line, Code):
@@ -29,9 +29,9 @@ class Code:
         _globals.update(kwargs)
         return _globals
 
-    def build_locals(self, **kwargs) -> dict:
+    def build_locals(self, **kwargs: Dict[str, Any]) -> dict:
         _locals: dict = self.locals.copy()
-        for line in self.lines:
+        for _, line in self.lines:
             if isinstance(line, Code):
                 _locals.update(line.build_locals())
         _locals.update(kwargs)
@@ -39,24 +39,24 @@ class Code:
 
     outdent = end_block
 
-    def full_outdent(self) -> NoReturn:
+    def full_outdent(self) -> None:
         self.depth = 0
 
     close = full_outdent
 
-    def add_locals(self, *args, **kwargs):
+    def add_locals(self, *args: Type[object], **kwargs: Any) -> None:
         for arg in args:
             self.locals[arg.__name__] = arg
         for name, val in kwargs.items():
             self.locals[name] = val
 
-    def add_globals(self, *args, **kwargs):
+    def add_globals(self, *args: Type[object], **kwargs: Any) -> None:
         for arg in args:
             self.globals[arg.__name__] = arg
         for name, val in kwargs.items():
             self.globals[name] = val
 
-    def add(self, *lines: Union[str, Code]) -> NoReturn:
+    def add(self, *lines: Union[str, Code]) -> None:
         for line in lines:
             self.lines.append((self.depth, line))
             if isinstance(line, str) and line[-1] == COLON:
@@ -84,10 +84,10 @@ class Code:
 
     def exec(
         self,
-        filename: str = None,
+        filename: Optional[str] = None,
         add_globals: Optional[Dict[str, Any]] = None,
         add_locals: Optional[Mapping[str, Any]] = None,
-    ) -> NoReturn:
+    ) -> None:
         _globals = self.build_globals(**add_globals or {})
         _locals = self.build_locals(**add_locals or {})
         exec(self.compile(filename), _globals, _locals)  # pylint: disable=W0122
