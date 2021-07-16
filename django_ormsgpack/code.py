@@ -23,7 +23,7 @@ class Code:
 
     def build_globals(self, **kwargs) -> dict:
         _globals: dict = self.globals.copy()
-        for line in self.lines:
+        for _, line in self.lines:
             if isinstance(line, Code):
                 _globals.update(line.build_globals())
         _globals.update(kwargs)
@@ -74,18 +74,20 @@ class Code:
 
         return stringio.getvalue()
 
-    def compile(self) -> CodeType:
-        return compile(self.to_string(), "<string>", "exec")
+    def compile(self, filename: Optional[str] = None) -> CodeType:
+        if filename:
+            with open(filename, "w") as f:
+                f.write(self.to_string())
+        else:
+            filename = "<string>"
+        return compile(self.to_string(), filename, "exec")
 
     def exec(
         self,
+        filename: str = None,
         add_globals: Optional[Dict[str, Any]] = None,
         add_locals: Optional[Mapping[str, Any]] = None,
     ) -> NoReturn:
-        _globals = self.build_globals()
-        if add_globals:
-            _globals.update(add_globals)
-        _locals = self.build_locals()
-        if add_locals:
-            _locals.update(add_locals)
-        exec(self.compile(), _globals, _locals)  # pylint: disable=W0122
+        _globals = self.build_globals(**add_globals or {})
+        _locals = self.build_locals(**add_locals or {})
+        exec(self.compile(filename), _globals, _locals)  # pylint: disable=W0122
