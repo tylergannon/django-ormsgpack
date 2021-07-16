@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Type, Union
+from typing import Dict, Type, Union, TypeVar
 from zlib import adler32
 
 from django.utils.module_loading import import_string
@@ -36,7 +36,10 @@ def get_class(class_fqn: Union[str, int]) -> Type[Serializable]:
     return klass
 
 
-def register_serializable(decorated: Type[Serializable]) -> Type[Serializable]:
+R = TypeVar("R", bound=Type[Serializable])
+
+
+def register_serializable(decorated: R) -> R:
     """
     Add the decorated class to registry of serializable classes.
     """
