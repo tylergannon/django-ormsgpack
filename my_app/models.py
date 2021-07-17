@@ -8,10 +8,11 @@ from django.db.models import (
     Model,
     UUIDField,
 )
-from django_ormsgpack import SerializableModel, register_serializable
+from django_ormsgpack import serializable_model
 
 
-class ATestModel(SerializableModel, Model):
+@serializable_model
+class ATestModel(Model):
     id = UUIDField(primary_key=True, default=uuid4, editable=False)
     char_field = CharField(max_length=255)
     date_field = DateTimeField()
@@ -24,18 +25,18 @@ class ATestModel(SerializableModel, Model):
         fields = {"char_field", "date_field", "decimal_field", "int_field", "zorg"}
 
 
-@register_serializable
+@serializable_model
 class BTestModel(ATestModel):
     ...
 
 
-@register_serializable
+@serializable_model
 class CTestModel(BTestModel):
     id = IntegerField(primary_key=True)
 
 
-@register_serializable
-class Ticket(SerializableModel, Model):
+@serializable_model
+class Ticket(Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     screening = models.ForeignKey(
         BTestModel, related_name="screenings", on_delete=models.PROTECT

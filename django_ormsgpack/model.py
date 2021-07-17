@@ -43,6 +43,7 @@ class SerializationProgrammingError(SerializationError):
 ERROR_UPDATE_FIELDS = "To save a deserialized copy of a model, the instance must either: (a) be of a class that is configured to serialize all of its fields, (b) provide `update_fields` with a subset of the serialized fields, or (c) provide `force_insert` or `force_update`."
 
 
+@Serializable.register
 class SerializableModel(Model):
     """
     Enables serialization with django_ormsgpack.
@@ -145,6 +146,12 @@ class SerializableModel(Model):
                 traceback.print_exc()
                 raise SerializationError() from ex
 
+    @classmethod
+    def deserialize(cls: T, val: bytes) -> T:  # type: ignore
+        return cls.from_tuple(
+            ormsgpack.unpackb(val)
+        )  # pylint: disable=c-extension-no-member
+
     def to_tuple(self) -> tuple:
         """
         Convert the object to list based on configuration.
@@ -158,6 +165,9 @@ class SerializableModel(Model):
             except Exception as ex:
                 traceback.print_exc()
                 raise SerializationError() from ex
+
+    def serialize(self) -> bytes:
+        return ormsgpack.packb(self.to_tuple())
 
     class Meta:
         abstract = True

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Any, List, NewType, Type, TypeVar
+from abc import ABC, ABCMeta, abstractmethod
+from typing import Any, List, NewType, Optional, Type, TypeVar
 
 
 class Serializable(ABC):
-    _serializer_id = 0
+    _serializer_id: Optional[int] = None
 
     @classmethod
     @abstractmethod
