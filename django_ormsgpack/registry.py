@@ -76,6 +76,7 @@ def serializable_model(decorated: R) -> Union[R, Serializable]:
 
         ModelClass.__doc__ = decorated.__doc__
         decorated = ModelClass  # type: ignore
+        Serializable.register(decorated)  # type: ignore
 
     id_num = adler32(class_fqname(decorated).encode(ASCII))
     ID_TO_CLASS[id_num] = decorated
