@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, Type, TypeVar, Union
 from zlib import adler32
 
+from django.db.models import Model
 from django.utils.module_loading import import_string
 
 from .serializable import Serializable
@@ -36,13 +37,46 @@ def get_class(class_fqn: Union[str, int]) -> Type[Serializable]:
     return klass
 
 
-R = TypeVar("R", bound=Type[Serializable])
+R = TypeVar("R", bound=Model)
 
 
-def register_serializable(decorated: R) -> R:
+def serializable_model(decorated: R) -> Union[R, Serializable]:
     """
     Add the decorated class to registry of serializable classes.
     """
+    if not issubclass(decorated, Serializable):
+        from .model import SerializableModel
+
+        app_label = decorated._meta.app_label
+        MetaSubclass = getattr(decorated, "Meta", object)
+
+        app_models = decorated._meta.apps.all_models[decorated._meta.app_label]
+        if decorated._meta.model_name in app_models:
+            del app_models[decorated._meta.model_name]
+
+        ModelClass = type(
+            decorated.__name__,
+            (
+                SerializableModel,
+                decorated,
+            ),
+            {
+                "Meta": type(
+                    "Meta",
+                    (MetaSubclass,),
+                    {"app_label": decorated._meta.app_label, "proxy": True},
+                ),
+                "__module__": decorated.__module__,
+            },
+        )
+
+        # class ModelClass(SerializableModel, decorated):  # type: ignore
+        #     class Meta(MetaSubclass):  # type: ignore
+        #         app_label = decorated._meta.app_label
+
+        ModelClass.__doc__ = decorated.__doc__
+        decorated = ModelClass  # type: ignore
+
     id_num = adler32(class_fqname(decorated).encode(ASCII))
     ID_TO_CLASS[id_num] = decorated
     CLASS_TO_ID[decorated] = id_num
