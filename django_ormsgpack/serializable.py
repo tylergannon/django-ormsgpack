@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, List, NewType, Type, TypeVar, Optional
+from typing import Any, List, NewType, Optional, Type, TypeVar
 
 
 class Serializable:
