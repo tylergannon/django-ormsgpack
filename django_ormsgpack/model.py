@@ -43,7 +43,7 @@ class SerializationProgrammingError(SerializationError):
 ERROR_UPDATE_FIELDS = "To save a deserialized copy of a model, the instance must either: (a) be of a class that is configured to serialize all of its fields, (b) provide `update_fields` with a subset of the serialized fields, or (c) provide `force_insert` or `force_update`."
 
 
-@Serializable.register  # type: ignore
+@Serializable.register
 class SerializableModel(Model):
     """
     Enables serialization with django_ormsgpack.
