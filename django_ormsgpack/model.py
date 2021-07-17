@@ -147,7 +147,9 @@ class SerializableModel(Model, Serializable):
 
     @classmethod
     def deserialize(cls: T, val: bytes) -> T:
-        return cls.from_tuple(ormsgpack.unpackb(val))  # pylint: disable=c-extension-no-member
+        return cls.from_tuple(
+            ormsgpack.unpackb(val)
+        )  # pylint: disable=c-extension-no-member
 
     def to_tuple(self) -> tuple:
         """
